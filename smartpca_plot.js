@@ -797,7 +797,7 @@
     const clone = svg.cloneNode(true);
     clone.setAttribute("xmlns", ns);
     const style = el("style");
-    style.textContent = ".axis-label{font:13px Arial}.tick-label{font:11px Arial;fill:#555c63}.plot-heading{font:bold 14px Arial}.plot-subtitle{font:12px Arial;fill:#6c757d}.point-label{font:10px Arial;paint-order:stroke;stroke:rgba(255,255,255,.84);stroke-width:3px}.group-label{font:bold 11px Arial;paint-order:stroke;stroke:rgba(255,255,255,.9);stroke-linejoin:round}.group-label-line{stroke-width:1;stroke-dasharray:3 3}.group-label-banner{fill:rgba(255,255,255,.72);stroke:rgba(45,55,72,.22);stroke-width:1}.group-label-banner-text{font:bold 12px Arial;fill:#2d3748}";
+    style.textContent = ".axis-label{font:13px Arial}.tick-label{font:11px Arial;fill:#555c63}.plot-heading{font:bold 14px Arial}.plot-subtitle{font:12px Arial;fill:#6c757d}.point-label{font:10px Arial;paint-order:stroke;stroke:rgba(255,255,255,.84);stroke-width:3px}.group-label{font:bold 11px Arial;paint-order:stroke;stroke:rgba(255,255,255,.9);stroke-linejoin:round}.group-label-line{stroke-width:1}.group-label-banner{fill:rgba(255,255,255,.72);stroke:rgba(45,55,72,.22);stroke-width:1}.group-label-banner-text{font:bold 12px Arial;fill:#2d3748}";
     clone.insertBefore(style, clone.firstChild);
     const source = new XMLSerializer().serializeToString(clone);
     const blob = new Blob([source], { type: "image/svg+xml;charset=utf-8" });
