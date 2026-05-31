@@ -33,6 +33,7 @@
   let grayMode = false;
   let labelMode = 0;
   let markerScaleIndex = 0;
+  let squarePlot = false;
   let groupLabels = false;
   let groupLabelStyle = 0;
   let hullsVisible = false;
@@ -168,6 +169,65 @@
 
   function markerSize() {
     return data.pointSize * markerScales[markerScaleIndex];
+  }
+
+  function isMobileLayout() {
+    return window.matchMedia("(max-width: 760px)").matches;
+  }
+
+  function layoutFrame(width, height) {
+    const legendWidth = legendVisible && !isMobileLayout() ? Math.min(300, legend.offsetWidth + 34) : 0;
+    const baseMargin = { left: 72, right: 28 + legendWidth, top: 50, bottom: 62 };
+    const availableWidth = Math.max(80, width - baseMargin.left - baseMargin.right);
+    const availableHeight = Math.max(80, height - baseMargin.top - baseMargin.bottom);
+
+    if (!squarePlot) {
+      const margin = baseMargin;
+      return {
+        width,
+        height,
+        margin,
+        innerWidth: availableWidth,
+        innerHeight: availableHeight,
+        plotRight: margin.left + availableWidth,
+        plotBottom: margin.top + availableHeight,
+      };
+    }
+
+    const size = Math.min(availableWidth, availableHeight);
+    const extraX = Math.max(0, (availableWidth - size) / 2);
+    const extraY = Math.max(0, (availableHeight - size) / 2);
+    const margin = {
+      left: baseMargin.left + extraX,
+      right: baseMargin.right + extraX,
+      top: baseMargin.top + extraY,
+      bottom: baseMargin.bottom + extraY,
+    };
+    return {
+      width,
+      height,
+      margin,
+      innerWidth: size,
+      innerHeight: size,
+      plotRight: margin.left + size,
+      plotBottom: margin.top + size,
+    };
+  }
+
+  function positionLegend() {
+    if (!frame || isMobileLayout()) {
+      legend.style.top = "";
+      legend.style.right = "";
+      legend.style.bottom = "";
+      legend.style.left = "";
+      legend.style.maxHeight = "";
+      return;
+    }
+    legend.style.top = `${frame.margin.top}px`;
+    legend.style.left = `${clamp(frame.plotRight + 16, 8, frame.width - legend.offsetWidth - 8)}px`;
+    legend.style.right = "";
+    legend.style.bottom = "";
+    legend.style.maxHeight = `calc(100% - ${frame.margin.top + 16}px)`;
   }
 
   function defaultGroupLabelOffset(index) {
@@ -525,33 +585,6 @@
     }
   }
 
-  function drawGroupLabelBanner() {
-    if (!groupLabels) {
-      return;
-    }
-    const message = "Group labels: population centroids";
-    const bannerHeight = 26;
-    const maxWidth = Math.max(160, frame.innerWidth - 24);
-    const bannerWidth = Math.min(maxWidth, estimateTextWidth(message, 12) + 30);
-    const x = frame.margin.left + (frame.innerWidth - bannerWidth) / 2;
-    const y = frame.margin.top + 10;
-    svg.appendChild(el("rect", {
-      x,
-      y,
-      width: bannerWidth,
-      height: bannerHeight,
-      rx: 5,
-      ry: 5,
-      class: "group-label-banner",
-    }));
-    svg.appendChild(el("text", {
-      x: x + bannerWidth / 2,
-      y: y + 17,
-      "text-anchor": "middle",
-      class: "group-label-banner-text",
-    }, message));
-  }
-
   function drawPlot() {
     clear(svg);
     updateMeta();
@@ -562,13 +595,9 @@
     const rect = graph.getBoundingClientRect();
     const width = Math.max(640, Math.floor(rect.width));
     const height = Math.max(420, Math.floor(rect.height));
-    const legendWidth = legendVisible && !window.matchMedia("(max-width: 760px)").matches ? Math.min(300, legend.offsetWidth + 34) : 0;
-    const margin = { left: 72, right: 28 + legendWidth, top: 50, bottom: 62 };
-    const innerWidth = Math.max(80, width - margin.left - margin.right);
-    const innerHeight = Math.max(80, height - margin.top - margin.bottom);
-    const plotRight = margin.left + innerWidth;
-    const plotBottom = margin.top + innerHeight;
-    frame = { width, height, margin, innerWidth, innerHeight, plotRight, plotBottom };
+    frame = layoutFrame(width, height);
+    positionLegend();
+    const { margin, innerWidth, innerHeight, plotRight, plotBottom } = frame;
 
     svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
     svg.appendChild(el("title", { id: "plotTitle" }, `${data.title} - ${pair.label}`));
@@ -634,7 +663,6 @@
     }
 
     drawGroupLabels(pcx, pcy);
-    drawGroupLabelBanner();
 
     if (selectionRect) {
       const x = Math.min(selectionRect.x0, selectionRect.x1);
@@ -655,8 +683,10 @@
       svg.appendChild(el("line", { x1: margin.left, y1: spikePoint.y, x2: plotRight, y2: spikePoint.y, class: "spike-line" }));
     }
 
-    svg.appendChild(el("text", { x: margin.left + innerWidth / 2, y: height - 19, "text-anchor": "middle", class: "axis-label" }, `PC${pcx}`));
-    svg.appendChild(el("text", { x: 18, y: margin.top + innerHeight / 2, "text-anchor": "middle", class: "axis-label", transform: `rotate(-90 18 ${margin.top + innerHeight / 2})` }, `PC${pcy}`));
+    svg.appendChild(el("text", { x: margin.left + innerWidth / 2, y: plotBottom + 43, "text-anchor": "middle", class: "axis-label" }, `PC${pcx}`));
+    const yAxisLabelX = margin.left - 54;
+    const yAxisLabelY = margin.top + innerHeight / 2;
+    svg.appendChild(el("text", { x: yAxisLabelX, y: yAxisLabelY, "text-anchor": "middle", class: "axis-label", transform: `rotate(-90 ${yAxisLabelX} ${yAxisLabelY})` }, `PC${pcy}`));
     updateToolButtons();
     if (!hoverEnabled) {
       hideTooltip();
@@ -714,6 +744,7 @@
 
   function syncLegend() {
     legend.style.display = legendVisible ? "" : "none";
+    positionLegend();
     for (const item of legend.querySelectorAll(".legend-item")) {
       item.classList.toggle("is-hidden", hiddenPops.has(item.dataset.pop));
     }
@@ -773,6 +804,7 @@
     grayMode = false;
     labelMode = 0;
     markerScaleIndex = 0;
+    squarePlot = false;
     groupLabels = false;
     groupLabelStyle = 0;
     hullsVisible = false;
@@ -797,7 +829,7 @@
     const clone = svg.cloneNode(true);
     clone.setAttribute("xmlns", ns);
     const style = el("style");
-    style.textContent = ".axis-label{font:13px Arial}.tick-label{font:11px Arial;fill:#555c63}.plot-heading{font:bold 14px Arial}.plot-subtitle{font:12px Arial;fill:#6c757d}.point-label{font:10px Arial;paint-order:stroke;stroke:rgba(255,255,255,.84);stroke-width:3px}.group-label{font:bold 11px Arial;paint-order:stroke;stroke:rgba(255,255,255,.9);stroke-linejoin:round}.group-label-line{stroke-width:1}.group-label-banner{fill:rgba(255,255,255,.72);stroke:rgba(45,55,72,.22);stroke-width:1}.group-label-banner-text{font:bold 12px Arial;fill:#2d3748}";
+    style.textContent = ".axis-label{font:13px Arial}.tick-label{font:11px Arial;fill:#555c63}.plot-heading{font:bold 14px Arial}.plot-subtitle{font:12px Arial;fill:#6c757d}.point-label{font:10px Arial;paint-order:stroke;stroke:rgba(255,255,255,.84);stroke-width:3px}.group-label{font:bold 11px Arial;paint-order:stroke;stroke:rgba(255,255,255,.9);stroke-linejoin:round}.group-label-line{stroke-width:1}";
     clone.insertBefore(style, clone.firstChild);
     const source = new XMLSerializer().serializeToString(clone);
     const blob = new Blob([source], { type: "image/svg+xml;charset=utf-8" });
@@ -1018,6 +1050,7 @@
       ["gray", "Gray", "Toggle color or gray", () => { grayMode = !grayMode; drawLegend(); drawPlot(); }, () => grayMode],
       ["labels", "Aa", "Cycle point labels: none/sample/population", () => { labelMode = (labelMode + 1) % 3; drawPlot(); }, () => labelMode > 0],
       ["size", "Dot", "Cycle marker size", () => { markerScaleIndex = (markerScaleIndex + 1) % markerScales.length; drawLegend(); drawPlot(); }, () => markerScaleIndex !== 0],
+      ["square", "Sq", "Toggle square plot area", () => { squarePlot = !squarePlot; drawPlot(); }, () => squarePlot],
       ["groupstyle", "Lbl", "Cycle group label style", () => { groupLabelStyle = (groupLabelStyle + 1) % 3; drawPlot(); }, () => groupLabelStyle !== 0],
       ["groups", "Grp", "Toggle population centroid labels", () => { groupLabels = !groupLabels; drawPlot(); }, () => groupLabels],
       ["hulls", "Hull", "Toggle convex hulls", () => { hullsVisible = !hullsVisible; drawPlot(); }, () => hullsVisible],
