@@ -29,6 +29,7 @@
   let spikePoint = null;
   let subtitle = "";
   let legendVisible = true;
+  let legendCountsVisible = true;
   let hoverEnabled = true;
   let grayMode = false;
   let labelMode = 0;
@@ -510,7 +511,7 @@
       const meanX = points.reduce((total, point) => total + point.x, 0) / points.length;
       const meanY = points.reduce((total, point) => total + point.y, 0) / points.length;
       const centroid = dataToScreen(meanX, meanY);
-      const label = `${pop} (${points.length})`;
+      const label = pop;
       const labelWidth = estimateTextWidth(label, 11) + 14;
       const labelHeight = 20;
       const offset = groupLabelOffsets.get(groupLabelKey(pop)) || defaultGroupLabelOffset(index);
@@ -744,6 +745,7 @@
 
   function syncLegend() {
     legend.style.display = legendVisible ? "" : "none";
+    legend.classList.toggle("hide-counts", !legendCountsVisible);
     positionLegend();
     for (const item of legend.querySelectorAll(".legend-item")) {
       item.classList.toggle("is-hidden", hiddenPops.has(item.dataset.pop));
@@ -800,6 +802,7 @@
     groupLabelOffsets.clear();
     subtitle = "";
     legendVisible = true;
+    legendCountsVisible = true;
     hoverEnabled = true;
     grayMode = false;
     labelMode = 0;
@@ -1045,6 +1048,7 @@
       ["spikes", "Spike", "Toggle cursor spike lines", () => { spikesVisible = !spikesVisible; drawPlot(); }, () => spikesVisible],
       ["subtitle", "Sub", "Add or clear subtitle", () => { const value = prompt("Subtitle", subtitle); subtitle = value === null ? "" : value.trim(); drawPlot(); }],
       ["legend", "Leg", "Toggle legend", () => { legendVisible = !legendVisible; syncLegend(); drawPlot(); }, () => legendVisible],
+      ["legendcounts", "Cnt", "Toggle legend sample counts", () => { legendCountsVisible = !legendCountsVisible; syncLegend(); drawPlot(); }, () => legendCountsVisible],
       ["visibility", "Vis", "Show or hide all populations", () => { if (visiblePops().length) { for (const pop of data.pops) hiddenPops.add(pop); } else { hiddenPops.clear(); } refresh(); }],
       ["hover", "Tip", "Toggle hover text", () => { hoverEnabled = !hoverEnabled; drawPlot(); }, () => hoverEnabled],
       ["gray", "Gray", "Toggle color or gray", () => { grayMode = !grayMode; drawLegend(); drawPlot(); }, () => grayMode],
